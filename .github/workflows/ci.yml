@@ -1,0 +1,50 @@
+# Continuous integration (Module 6: MLOps Foundations — Versioning and CI/CD).
+# Free on public GitHub repositories. Every push and pull request re-runs the
+# test suite, the backprop gradient check, the demo, a train -> gate -> drift
+# check and the full lab on two Python versions, then builds the Docker image,
+# so a change that breaks the math or the deployment path cannot land unnoticed.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Unit tests
+        run: python tests/test_all.py
+      - name: Backprop gradient check
+        run: python -m modelforge gradcheck
+      - name: Guided demo (smoke test)
+        run: python demo/run_demo.py
+      - name: Quality gate — train, promote, check drift
+        run: |
+          python -m modelforge train --model decision_tree
+          python -m modelforge train --model neural_network
+          python -m modelforge registry
+          python -m modelforge drift
+      - name: Full lab + HTML report
+        run: python -m modelforge lab --fast --out report.html
+      - name: Upload the lab report
+        uses: actions/upload-artifact@v4
+        with:
+          name: lab-report-py${{ matrix.python-version }}
+          path: report.html
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the image (runs the tests inside it)
+        run: docker build -t modelforge .
+      - name: Run the gradient check in the container
+        run: docker run --rm modelforge python -m modelforge gradcheck

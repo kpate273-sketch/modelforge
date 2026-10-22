@@ -1,0 +1,4 @@
+# ModelForge has ZERO third-party dependencies.
+# Every algorithm is implemented from scratch on the Python standard library
+# (math, random, json, hashlib). No numpy, no scikit-learn, no GPU.
+# Python 3.10+.
